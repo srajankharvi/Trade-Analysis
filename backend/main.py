@@ -1,7 +1,7 @@
-from fastapi import FastAPI
-from fastapi.responses import RedirectResponse, JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI, Request
+from fastapi.responses import RedirectResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware
 import os
 
 from backend.config import get_settings
@@ -21,14 +21,27 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# Configure CORS — allow all origins for now
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+
+# Custom CORS middleware — manually adds headers to every response
+class CORSMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        # Handle preflight OPTIONS requests
+        if request.method == "OPTIONS":
+            response = Response(status_code=200)
+            response.headers["Access-Control-Allow-Origin"] = "*"
+            response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
+            response.headers["Access-Control-Allow-Headers"] = "*"
+            response.headers["Access-Control-Max-Age"] = "3600"
+            return response
+
+        response = await call_next(request)
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
+        response.headers["Access-Control-Allow-Headers"] = "*"
+        return response
+
+
+app.add_middleware(CORSMiddleware)
 
 # Mount upload directory for serving screenshots
 UPLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "uploads")
