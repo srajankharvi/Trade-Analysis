@@ -14,6 +14,8 @@ class Settings(BaseSettings):
 
     MAX_UPLOAD_SIZE: int = 5242880  # 5 MB
 
+    FRONTEND_URL: str = "http://127.0.0.1:5500"  # Vercel URL in production
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

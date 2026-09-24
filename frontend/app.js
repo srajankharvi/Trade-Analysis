@@ -3,7 +3,8 @@
    Complete SPA with API integration
    ══════════════════════════════════════════════════ */
 
-const API_BASE = 'http://127.0.0.1:8000';
+// API base URL — set window.API_BASE_URL before this script loads to override (e.g. for production)
+const API_BASE = window.API_BASE_URL || 'http://127.0.0.1:8000';
 
 /* ── State ── */
 const state = {
