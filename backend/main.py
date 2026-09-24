@@ -21,18 +21,11 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# Configure CORS — allow the Vercel frontend origin
+# Configure CORS — allow all origins for now
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        settings.FRONTEND_URL,
-        "https://trade-analysis-eta.vercel.app",
-        "http://127.0.0.1:5500",
-        "http://localhost:5500",
-        "http://127.0.0.1:8000",
-        "http://localhost:8000",
-    ],
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
