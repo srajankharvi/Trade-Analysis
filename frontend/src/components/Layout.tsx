@@ -1,6 +1,6 @@
 import React from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, List, PlusCircle, BarChart2, LogOut } from 'lucide-react';
+import { LayoutDashboard, List, PlusCircle, BarChart2, LogOut, CandlestickChart } from 'lucide-react';
 import { useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 
@@ -13,6 +13,7 @@ const Layout = () => {
     { path: '/trades', label: 'Trades', icon: <List size={20} /> },
     { path: '/add-trade', label: 'Add Trade', icon: <PlusCircle size={20} /> },
     { path: '/analytics', label: 'Analytics', icon: <BarChart2 size={20} /> },
+    { path: '/chart', label: 'Chart', icon: <CandlestickChart size={20} /> },
   ];
 
   return (

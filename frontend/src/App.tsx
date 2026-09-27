@@ -8,6 +8,7 @@ import Register from './pages/Register';
 import AddTrade from './pages/AddTrade';
 import Trades from './pages/Trades';
 import Analytics from './pages/Analytics';
+import TradingChart from './pages/TradingChart';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useContext(AuthContext);
@@ -26,6 +27,7 @@ const AppRoutes = () => {
         <Route path="trades" element={<Trades />} />
         <Route path="add-trade" element={<AddTrade />} />
         <Route path="analytics" element={<Analytics />} />
+        <Route path="chart" element={<TradingChart />} />
       </Route>
     </Routes>
   );
