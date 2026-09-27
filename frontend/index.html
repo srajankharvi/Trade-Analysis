@@ -1,22 +1,13 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="TradeJournal — Personal trading journal and analytics application for recording, organizing, and analyzing your trading history.">
-    <title>TradeJournal — Trading Journal & Analytics</title>
-    <link rel="stylesheet" href="style.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-</head>
-<body>
-    <div id="app">
-        <!-- App rendered by JavaScript -->
-        <div class="auth-container">
-            <div style="text-align:center;color:var(--text-muted);">Loading...</div>
-        </div>
-    </div>
-    <!-- Set your Render backend URL here for production -->
-    <script>window.API_BASE_URL = 'https://trade-analysis-gvr5.onrender.com';</script>
-    <script src="app.js"></script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>frontend</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
 </html>
