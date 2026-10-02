@@ -1,0 +1,27 @@
+{
+  "name": "trade-record",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "concurrently -n backend,frontend,analytics -c blue,green,yellow \"npm run dev:backend\" \"npm run dev:frontend\" \"npm run dev:analytics\"",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:analytics": "cd analytics && .\\venv\\Scripts\\python main.py"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/srajankharvi/Trade-Analysis.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/srajankharvi/Trade-Analysis/issues"
+  },
+  "homepage": "https://github.com/srajankharvi/Trade-Analysis#readme",
+  "devDependencies": {
+    "concurrently": "^10.0.5"
+  }
+}

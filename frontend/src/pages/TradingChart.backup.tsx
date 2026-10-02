@@ -7,8 +7,7 @@ import { useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import {
   CandlestickChart, LineChart as LineChartIcon, AreaChart, Maximize, RotateCcw,
-  Activity, TrendingUp, TrendingDown, Target, PanelRightClose, PanelRightOpen, ArrowLeft,
-  Play, Pause, StepForward, Plus, Minus
+  Activity, TrendingUp, TrendingDown, Target, PanelRightClose, PanelRightOpen, ArrowLeft
 } from 'lucide-react';
 import './TradingChart.css';
 
@@ -111,11 +110,7 @@ const TradingChart: React.FC = () => {
   const [symbolSearch, setSymbolSearch] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  const currentPriceRef = useRef<HTMLSpanElement>(null);
-  const currentPriceValueRef = useRef<number>(0);
-  const positionCurrentPriceRef = useRef<HTMLSpanElement>(null);
-  const pnlRef = useRef<HTMLSpanElement>(null);
-  
+  const [currentPrice, setCurrentPrice] = useState('0.00');
   const [priceChange24h, setPriceChange24h] = useState(0);
   const [watchlistPrices, setWatchlistPrices] = useState<Record<string, WatchlistPrice>>({});
 
@@ -128,19 +123,6 @@ const TradingChart: React.FC = () => {
   const [btQuantity, setBtQuantity] = useState('0.01');
   const [btStopLoss, setBtStopLoss] = useState('');
   const [btTakeProfit, setBtTakeProfit] = useState('');
-
-  const [btState, setBtState] = useState<'idle' | 'playing' | 'paused'>('idle');
-  const [btSpeed, setBtSpeed] = useState<number>(1);
-  const [btCurrentIndex, setBtCurrentIndex] = useState<number>(0);
-  const [btTotalCandles, setBtTotalCandles] = useState<number>(0);
-  
-  const fullHistoryRef = useRef<CandleData[]>([]);
-  const fullVolumesRef = useRef<any[]>([]);
-  const backtestPositionRef = useRef<any>(null);
-  
-  useEffect(() => {
-    backtestPositionRef.current = backtestPosition;
-  }, [backtestPosition]);
 
   // Trade history
   const [tradeHistory, setTradeHistory] = useState<any[]>([]);
@@ -195,39 +177,10 @@ const TradingChart: React.FC = () => {
       crosshair: { mode: CrosshairMode.Normal },
       rightPriceScale: { borderColor: '#1e222d' },
       timeScale: { borderColor: '#1e222d', timeVisible: true, secondsVisible: false },
-      handleScale: { mouseWheel: false, pinch: true, axisPressedMouseMove: true },
-      handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: true },
-      kinematicScroll: { mouse: true },
       width: chartContainerRef.current.clientWidth,
       height: chartContainerRef.current.clientHeight,
     });
     chartRef.current = chart;
-
-    const handleWheel = (e: WheelEvent) => {
-      if (e.ctrlKey) return; 
-      e.preventDefault();
-      const timeScale = chart.timeScale();
-      const logicalRange = timeScale.getVisibleLogicalRange();
-      if (!logicalRange) return;
-
-      const sign = Math.sign(e.deltaY);
-      const zoomFactor = Math.abs(e.deltaY) > 50 ? 0.2 : 0.08; 
-      const rangeSize = logicalRange.to - logicalRange.from;
-      if (sign < 0 && rangeSize < 5) return; 
-      
-      const zoomAmount = rangeSize * zoomFactor * sign;
-      const rect = chartContainerRef.current!.getBoundingClientRect();
-      const cursorLogical = timeScale.coordinateToLogical(e.clientX - rect.left);
-
-      if (cursorLogical !== null) {
-        const ratio = (cursorLogical - logicalRange.from) / rangeSize;
-        timeScale.setVisibleLogicalRange({ 
-          from: logicalRange.from - zoomAmount * ratio, 
-          to: logicalRange.to + zoomAmount * (1 - ratio) 
-        });
-      }
-    };
-    chartContainerRef.current.addEventListener('wheel', handleWheel, { passive: false });
 
     const mainSeries = chart.addSeries(CandlestickSeries, {
       upColor: '#10b981', downColor: '#ef4444',
@@ -256,7 +209,6 @@ const TradingChart: React.FC = () => {
     ro.observe(chartContainerRef.current);
 
     return () => {
-      chartContainerRef.current?.removeEventListener('wheel', handleWheel);
       window.removeEventListener('resize', handleResize);
       ro.disconnect();
       chart.remove();
@@ -266,12 +218,6 @@ const TradingChart: React.FC = () => {
 
   // ── Fetch klines + connect WebSocket ──
   useEffect(() => {
-    if (backtestMode) {
-      if (wsRef.current) { wsRef.current.close(); wsRef.current = null; }
-      loadBacktestData();
-      return;
-    }
-
     const fetchAndConnect = async () => {
       try {
         const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=${selectedSymbol}&interval=${selectedTf}&limit=500`);
@@ -294,10 +240,7 @@ const TradingChart: React.FC = () => {
         if (volumeSeriesRef.current) volumeSeriesRef.current.setData(volumes);
         if (chartRef.current) chartRef.current.timeScale().fitContent();
 
-        if (candles.length > 0) {
-          currentPriceValueRef.current = candles[candles.length - 1].close;
-          if (currentPriceRef.current) currentPriceRef.current.innerText = candles[candles.length - 1].close.toFixed(2);
-        }
+        if (candles.length > 0) setCurrentPrice(candles[candles.length - 1].close.toFixed(2));
         applyIndicators(candles);
       } catch (err) {
         console.error('Failed to fetch klines', err);
@@ -322,8 +265,7 @@ const TradingChart: React.FC = () => {
           open: parseFloat(k.o), high: parseFloat(k.h),
           low: parseFloat(k.l), close: parseFloat(k.c),
         };
-        currentPriceValueRef.current = parseFloat(k.c);
-        if (currentPriceRef.current) currentPriceRef.current.innerText = parseFloat(k.c).toFixed(2);
+        setCurrentPrice(parseFloat(k.c).toFixed(2));
 
         if (mainSeriesRef.current) mainSeriesRef.current.update(candle);
         if (volumeSeriesRef.current) {
@@ -343,15 +285,8 @@ const TradingChart: React.FC = () => {
         }
 
         // Update position current price
-        const pos = backtestPositionRef.current;
-        if (pos) {
-          if (positionCurrentPriceRef.current) positionCurrentPriceRef.current.innerText = `$${parseFloat(k.c).toFixed(2)}`;
-          if (pnlRef.current) {
-            const currentC = parseFloat(k.c);
-            const pnl = pos.direction === 'Buy' ? (currentC - pos.entryPrice) * pos.quantity : (pos.entryPrice - currentC) * pos.quantity;
-            pnlRef.current.innerText = `${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`;
-            pnlRef.current.style.color = pnl >= 0 ? '#10b981' : '#ef4444';
-          }
+        if (backtestPosition) {
+          setBacktestPosition((prev: any) => prev ? { ...prev, currentPrice: parseFloat(k.c) } : null);
         }
       };
       wsRef.current = ws;
@@ -360,27 +295,24 @@ const TradingChart: React.FC = () => {
     fetchAndConnect();
     return () => { if (wsRef.current) { wsRef.current.close(); wsRef.current = null; } };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedSymbol, selectedTf, backtestMode]);
+  }, [selectedSymbol, selectedTf]);
 
   // ── Watchlist prices ──
-  const watchlistUpdatesRef = useRef<Record<string, WatchlistPrice>>({});
   useEffect(() => {
     const ws = new WebSocket('wss://stream.binance.com:9443/ws/!miniTicker@arr');
-    const interval = setInterval(() => {
-      if (Object.keys(watchlistUpdatesRef.current).length > 0) {
-        setWatchlistPrices(prev => ({ ...prev, ...watchlistUpdatesRef.current }));
-        watchlistUpdatesRef.current = {};
-      }
-    }, 1000);
     ws.onmessage = (event) => {
       const tickers = JSON.parse(event.data);
+      const updates: Record<string, WatchlistPrice> = {};
       for (const t of tickers) {
         if (SYMBOLS.find(s => s.symbol === t.s)) {
-          watchlistUpdatesRef.current[t.s] = { price: parseFloat(t.c).toFixed(2), change: ((parseFloat(t.c) - parseFloat(t.o)) / parseFloat(t.o)) * 100 };
+          updates[t.s] = { price: parseFloat(t.c).toFixed(2), change: ((parseFloat(t.c) - parseFloat(t.o)) / parseFloat(t.o)) * 100 };
         }
       }
+      if (Object.keys(updates).length > 0) {
+        setWatchlistPrices(prev => ({ ...prev, ...updates }));
+      }
     };
-    return () => { ws.close(); clearInterval(interval); };
+    return () => ws.close();
   }, []);
 
   // ── Re-apply indicators when toggled ──
@@ -400,7 +332,7 @@ const TradingChart: React.FC = () => {
 
   // ── Backtest trade actions ──
   const openBacktestTrade = (direction: 'Buy' | 'Sell') => {
-    const price = currentPriceValueRef.current;
+    const price = parseFloat(currentPrice);
     setBacktestPosition({
       symbol: selectedSymbol,
       direction,
@@ -413,28 +345,27 @@ const TradingChart: React.FC = () => {
     });
   };
 
-  const closeBacktestTrade = async (forcedExitPrice?: number) => {
-    const pos = backtestPositionRef.current || backtestPosition;
-    if (!pos) return;
-    const exitPrice = forcedExitPrice ?? parseFloat(currentPrice);
-    const pnl = pos.direction === 'Buy'
-      ? (exitPrice - pos.entryPrice) * pos.quantity
-      : (pos.entryPrice - exitPrice) * pos.quantity;
+  const closeBacktestTrade = async () => {
+    if (!backtestPosition) return;
+    const exitPrice = parseFloat(currentPrice);
+    const pnl = backtestPosition.direction === 'Buy'
+      ? (exitPrice - backtestPosition.entryPrice) * backtestPosition.quantity
+      : (backtestPosition.entryPrice - exitPrice) * backtestPosition.quantity;
 
     try {
-      const sym = SYMBOLS.find(s => s.symbol === pos.symbol);
+      const sym = SYMBOLS.find(s => s.symbol === backtestPosition.symbol);
       await axios.post('http://localhost:5000/api/trades', {
-        date: pos.entryTime,
-        symbol: sym ? sym.name : pos.symbol,
-        type: pos.direction,
+        date: backtestPosition.entryTime,
+        symbol: sym ? sym.name : backtestPosition.symbol,
+        type: backtestPosition.direction,
         strategy: 'Backtest',
-        entryTime: pos.entryTime,
+        entryTime: backtestPosition.entryTime,
         exitTime: new Date().toISOString(),
-        entryPrice: pos.entryPrice,
+        entryPrice: backtestPosition.entryPrice,
         exitPrice: exitPrice,
-        quantity: pos.quantity,
-        stopLoss: pos.stopLoss,
-        takeProfit: pos.takeProfit,
+        quantity: backtestPosition.quantity,
+        stopLoss: backtestPosition.stopLoss,
+        takeProfit: backtestPosition.takeProfit,
         pnl: parseFloat(pnl.toFixed(2)),
         status: pnl > 0 ? 'Win' : pnl < 0 ? 'Loss' : 'Breakeven',
       });
@@ -444,120 +375,7 @@ const TradingChart: React.FC = () => {
       console.error('Failed to save backtest trade', err);
     }
     setBacktestPosition(null);
-    backtestPositionRef.current = null;
   };
-
-  // ── Backtest Replay Engine ──
-  const loadBacktestData = async () => {
-    setBtState('idle');
-    setBacktestPosition(null);
-    try {
-      const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=${selectedSymbol}&interval=${selectedTf}&limit=1000`);
-      const raw = await res.json();
-      const candles: CandleData[] = raw.map((k: any) => ({
-        time: (k[0] / 1000) as Time, open: parseFloat(k[1]), high: parseFloat(k[2]), low: parseFloat(k[3]), close: parseFloat(k[4]),
-      }));
-      const volumes = raw.map((k: any) => ({
-        time: (k[0] / 1000) as Time, value: parseFloat(k[5]), color: parseFloat(k[4]) >= parseFloat(k[1]) ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)',
-      }));
-      fullHistoryRef.current = candles;
-      fullVolumesRef.current = volumes;
-      setBtTotalCandles(candles.length);
-      
-      const startIndex = Math.max(0, candles.length - 300);
-      setBtCurrentIndex(startIndex);
-    } catch(e) {}
-  };
-
-  const advanceCandle = useCallback(() => {
-    setBtCurrentIndex(prev => {
-      if (prev >= fullHistoryRef.current.length - 1) {
-        setBtState('paused');
-        return prev;
-      }
-      return prev + 1;
-    });
-  }, []);
-
-  const restartBt = () => {
-    setBtState('idle');
-    setBacktestPosition(null);
-    const startIndex = Math.max(0, fullHistoryRef.current.length - 300);
-    setBtCurrentIndex(startIndex);
-  };
-
-  useEffect(() => {
-    if (btState !== 'playing') return;
-    const intervalMs = 1000 / btSpeed;
-    const timer = setInterval(() => {
-      setBtCurrentIndex(prev => {
-        if (prev >= fullHistoryRef.current.length - 1) {
-          setBtState('paused');
-          return prev;
-        }
-        return prev + 1;
-      });
-    }, intervalMs);
-    return () => clearInterval(timer);
-  }, [btState, btSpeed]);
-
-  useEffect(() => {
-    if (!backtestMode || fullHistoryRef.current.length === 0) return;
-    
-    const candle = fullHistoryRef.current[btCurrentIndex];
-    const vol = fullVolumesRef.current[btCurrentIndex];
-    
-    const startIndex = Math.max(0, fullHistoryRef.current.length - 300);
-    
-    if (btCurrentIndex === startIndex) {
-      candlesRef.current = fullHistoryRef.current.slice(0, btCurrentIndex + 1);
-      mainSeriesRef.current?.setData(candlesRef.current);
-      volumeSeriesRef.current?.setData(fullVolumesRef.current.slice(0, btCurrentIndex + 1));
-      if (chartRef.current) chartRef.current.timeScale().fitContent();
-    } else {
-      candlesRef.current.push(candle);
-      mainSeriesRef.current?.update(candle);
-      volumeSeriesRef.current?.update(vol);
-    }
-
-    currentPriceValueRef.current = candle.close;
-    if (currentPriceRef.current) currentPriceRef.current.innerText = candle.close.toFixed(2);
-    applyIndicators(candlesRef.current);
-
-    const pos = backtestPositionRef.current;
-    if (pos) {
-      if (positionCurrentPriceRef.current) positionCurrentPriceRef.current.innerText = `$${candle.close.toFixed(2)}`;
-      if (pnlRef.current) {
-        const pnl = pos.direction === 'Buy' ? (candle.close - pos.entryPrice) * pos.quantity : (pos.entryPrice - candle.close) * pos.quantity;
-        pnlRef.current.innerText = `${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`;
-        pnlRef.current.style.color = pnl >= 0 ? '#10b981' : '#ef4444';
-      }
-
-      let triggered = false;
-      let exitPrice = candle.close;
-      if (pos.direction === 'Buy') {
-        if (pos.stopLoss && candle.low <= pos.stopLoss) { exitPrice = pos.stopLoss; triggered = true; }
-        else if (pos.takeProfit && candle.high >= pos.takeProfit) { exitPrice = pos.takeProfit; triggered = true; }
-      } else {
-        if (pos.stopLoss && candle.high >= pos.stopLoss) { exitPrice = pos.stopLoss; triggered = true; }
-        else if (pos.takeProfit && candle.low <= pos.takeProfit) { exitPrice = pos.takeProfit; triggered = true; }
-      }
-      if (triggered) {
-        closeBacktestTrade(exitPrice);
-      }
-    }
-  }, [btCurrentIndex, backtestMode]);
-
-  const handleManualZoom = (direction: 'in' | 'out') => {
-    if (!chartRef.current) return;
-    const timeScale = chartRef.current.timeScale();
-    const logicalRange = timeScale.getVisibleLogicalRange();
-    if (!logicalRange) return;
-    const rangeSize = logicalRange.to - logicalRange.from;
-    const zoomAmount = rangeSize * 0.3 * (direction === 'in' ? -1 : 1);
-    timeScale.setVisibleLogicalRange({ from: logicalRange.from - zoomAmount * 0.5, to: logicalRange.to + zoomAmount * 0.5 });
-  };
-  const handleResetZoom = () => chartRef.current?.timeScale().fitContent();
 
   // ── UI helpers ──
   const currentSymbolObj = SYMBOLS.find(s => s.symbol === selectedSymbol);
@@ -570,6 +388,12 @@ const TradingChart: React.FC = () => {
     if (!document.fullscreenElement) document.documentElement.requestFullscreen();
     else document.exitFullscreen();
   };
+
+  const unrealizedPnl = backtestPosition
+    ? backtestPosition.direction === 'Buy'
+      ? (backtestPosition.currentPrice - backtestPosition.entryPrice) * backtestPosition.quantity
+      : (backtestPosition.entryPrice - backtestPosition.currentPrice) * backtestPosition.quantity
+    : 0;
 
   // ────────────────────────── RENDER ──────────────────────────
   return (
@@ -594,7 +418,7 @@ const TradingChart: React.FC = () => {
         </div>
 
         <div className="chart-topbar__price">
-          <span className="chart-topbar__price-current" ref={currentPriceRef}>0.00</span>
+          <span className="chart-topbar__price-current">{currentPrice}</span>
           <span className={`chart-topbar__price-change ${priceChange24h >= 0 ? 'chart-topbar__price-change--up' : 'chart-topbar__price-change--down'}`}>
             {priceChange24h >= 0 ? '+' : ''}{priceChange24h.toFixed(2)}%
           </span>
@@ -640,10 +464,7 @@ const TradingChart: React.FC = () => {
         </div>
 
         <div className="chart-controls__sep" />
-        <button className="chart-controls__btn" onClick={() => handleManualZoom('in')} title="Zoom In"><Plus size={15} /></button>
-        <button className="chart-controls__btn" onClick={handleResetZoom} title="Reset Zoom">Reset</button>
-        <button className="chart-controls__btn" onClick={() => handleManualZoom('out')} title="Zoom Out"><Minus size={15} /></button>
-        <div className="chart-controls__sep" />
+        <button className="chart-controls__btn" onClick={resetChart} title="Reset"><RotateCcw size={15} /></button>
         <button className="chart-controls__btn" onClick={toggleFullscreen} title="Fullscreen"><Maximize size={15} /></button>
         <div className="chart-controls__sep" />
         <button
@@ -664,47 +485,13 @@ const TradingChart: React.FC = () => {
       {/* ── Backtest Bar ── */}
       {backtestMode && (
         <div className="backtest-bar">
-          <div className="bt-timeline">
-            <div className="bt-timeline__controls">
-              <button onClick={restartBt} title="Restart"><RotateCcw size={16} /></button>
-              <button onClick={() => setBtState(s => s === 'playing' ? 'paused' : 'playing')} className={btState === 'playing' ? 'playing' : ''}>
-                {btState === 'playing' ? <Pause size={16}/> : <Play size={16}/>}
-              </button>
-              <button onClick={advanceCandle} title="Next Candle"><StepForward size={16}/></button>
-              <select value={btSpeed} onChange={e => setBtSpeed(Number(e.target.value))}>
-                <option value={0.5}>0.5x</option>
-                <option value={1}>1x</option>
-                <option value={2}>2x</option>
-                <option value={5}>5x</option>
-                <option value={10}>10x</option>
-              </select>
-            </div>
-            
-            <div className="bt-timeline__progress-container">
-              <input type="range" 
-                min={Math.max(0, fullHistoryRef.current.length - 300)} 
-                max={Math.max(1, fullHistoryRef.current.length - 1)} 
-                value={btCurrentIndex} 
-                readOnly 
-              />
-            </div>
-            <div className="bt-timeline__info">
-              {fullHistoryRef.current[btCurrentIndex] && (
-                <span style={{marginRight: '0.5rem'}}>{new Date((fullHistoryRef.current[btCurrentIndex].time as number) * 1000).toLocaleString()}</span>
-              )}
-              <span>Candle {btCurrentIndex + 1} / {btTotalCandles}</span>
-              <span style={{marginLeft: '0.5rem'}}>{btTotalCandles > 0 ? ((btCurrentIndex / (btTotalCandles - 1)) * 100).toFixed(1) : 0}%</span>
-            </div>
-          </div>
-          
-          <div style={{width: '1px', height: '24px', background: 'rgba(41,98,255,0.2)', margin: '0 0.5rem'}} />
-          
+          <span className="backtest-bar__label">BACKTEST</span>
           <label style={{ fontSize: '0.8rem', color: '#787b86' }}>Qty</label>
           <input type="number" step="any" value={btQuantity} onChange={e => setBtQuantity(e.target.value)} style={{ width: 80 }} />
           <label style={{ fontSize: '0.8rem', color: '#787b86' }}>SL</label>
-          <input type="number" step="any" value={btStopLoss} onChange={e => setBtStopLoss(e.target.value)} placeholder="Optional" style={{ width: 60 }} />
+          <input type="number" step="any" value={btStopLoss} onChange={e => setBtStopLoss(e.target.value)} placeholder="Optional" style={{ width: 100 }} />
           <label style={{ fontSize: '0.8rem', color: '#787b86' }}>TP</label>
-          <input type="number" step="any" value={btTakeProfit} onChange={e => setBtTakeProfit(e.target.value)} placeholder="Optional" style={{ width: 60 }} />
+          <input type="number" step="any" value={btTakeProfit} onChange={e => setBtTakeProfit(e.target.value)} placeholder="Optional" style={{ width: 100 }} />
           {!backtestPosition ? (
             <>
               <button className="backtest-bar__btn backtest-bar__btn--buy" onClick={() => openBacktestTrade('Buy')}>
@@ -715,7 +502,7 @@ const TradingChart: React.FC = () => {
               </button>
             </>
           ) : (
-            <button className="backtest-bar__btn backtest-bar__btn--close" onClick={() => closeBacktestTrade()}>
+            <button className="backtest-bar__btn backtest-bar__btn--close" onClick={closeBacktestTrade}>
               Close Position
             </button>
           )}
@@ -757,14 +544,14 @@ const TradingChart: React.FC = () => {
                   </span>
                 </div>
                 <div className="position-panel__row"><span className="position-panel__label">Entry</span><span className="position-panel__value">${backtestPosition.entryPrice.toFixed(2)}</span></div>
-                <div className="position-panel__row"><span className="position-panel__label">Current</span><span className="position-panel__value" ref={positionCurrentPriceRef}>${currentPriceValueRef.current.toFixed(2)}</span></div>
+                <div className="position-panel__row"><span className="position-panel__label">Current</span><span className="position-panel__value">${backtestPosition.currentPrice.toFixed(2)}</span></div>
                 <div className="position-panel__row"><span className="position-panel__label">Quantity</span><span className="position-panel__value">{backtestPosition.quantity}</span></div>
                 {backtestPosition.stopLoss && <div className="position-panel__row"><span className="position-panel__label">Stop Loss</span><span className="position-panel__value" style={{ color: '#ef4444' }}>${backtestPosition.stopLoss.toFixed(2)}</span></div>}
                 {backtestPosition.takeProfit && <div className="position-panel__row"><span className="position-panel__label">Take Profit</span><span className="position-panel__value" style={{ color: '#10b981' }}>${backtestPosition.takeProfit.toFixed(2)}</span></div>}
                 <div className="position-panel__row" style={{ marginTop: '0.5rem', borderTop: '1px solid #2a2e39', paddingTop: '0.5rem' }}>
                   <span className="position-panel__label">Unrealized P&L</span>
-                  <span className="position-panel__value" ref={pnlRef} style={{ fontWeight: 700 }}>
-                    $0.00
+                  <span className="position-panel__value" style={{ color: unrealizedPnl >= 0 ? '#10b981' : '#ef4444', fontWeight: 700 }}>
+                    {unrealizedPnl >= 0 ? '+' : ''}${unrealizedPnl.toFixed(2)}
                   </span>
                 </div>
               </div>

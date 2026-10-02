@@ -18,7 +18,11 @@ const Register = () => {
       navigate('/');
     } catch (error) {
       console.error(error);
-      alert('Registration failed');
+      if (axios.isAxiosError(error) && error.response?.data?.error) {
+        alert(error.response.data.error);
+      } else {
+        alert('Registration failed');
+      }
     }
   };
 

@@ -484,3 +484,53 @@
     max-height: 150px;
   }
 }
+
+
+/* ── Backtest Timeline ── */
+.bt-timeline {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+  padding-left: 1rem;
+}
+.bt-timeline__controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.bt-timeline__controls button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #1e222d;
+  border: 1px solid #2a2e39;
+  color: #e1e4e8;
+  border-radius: 4px;
+  padding: 0.4rem;
+  cursor: pointer;
+}
+.bt-timeline__controls button:hover {
+  background: #2a2e39;
+}
+.bt-timeline__controls button.playing {
+  background: rgba(41, 98, 255, 0.2);
+  color: #2962ff;
+  border-color: rgba(41, 98, 255, 0.5);
+}
+.bt-timeline__progress-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.bt-timeline__progress-container input[type=range] {
+  flex: 1;
+  accent-color: #2962ff;
+  cursor: pointer;
+}
+.bt-timeline__info {
+  font-size: 0.75rem;
+  color: #787b86;
+  white-space: nowrap;
+}

@@ -35,6 +35,6 @@ mongoose
       console.log(`Server running on port ${PORT}`);
     });
   })
-  .catch((err) => {
-    console.error('MongoDB connection error:', err);
+  .catch((err: any) => {
+    console.error(`MongoDB connection error: ${err.message || err}`);
   });
